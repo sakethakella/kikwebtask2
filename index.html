@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>15-Puzzle Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: rgba(244, 244, 229, 0.879);
+    }
+
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 1vw;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1vw;
+      margin-bottom: 1vw;
+    }
+
+    .puzzle-piece {
+      width: 20vw;
+      height: 20vw;
+      background-color: #3498db;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 5vw;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .puzzle-piece:hover{
+        background-color: rgb(48, 30, 95);
+        color:rgb(241, 230, 6);
+    }
+
+    .empty {
+      background-color: #fff;
+    }
+
+    #game-info {
+      margin-bottom: 1vw;
+    }
+
+    button {
+      padding: 1vw;
+      font-size: 5vw;
+      margin: 1vw;
+      cursor: pointer;
+      width:40vw;
+      height: auto;
+      background-color:rgb(254, 213, 147);
+      border-radius: 15px;
+    }
+    button:hover{
+        background-color: rgba(255, 142, 3, 0.815);
+        color:brown;
+    }
+    #timer,
+    #move-count {
+      font-size: 4vw;
+      margin: 0;
+      font-weight: bolder;
+      font-family: sans-serif;
+    }
+
+    #leaderboard {
+      width: 90vw;
+      text-align: left;
+      font-size: 3vw;
+    }
+
+    #leaderboard-list {
+      padding: 0;
+      list-style: none;
+      font-size: 3vw;
+    }
+
+    #leaderboard-list li {
+      margin-bottom: 1vw;
+      font-size: 3vw;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-container">
+    <div id="game-info">
+      <p id="timer">Timer: 0:00</p>
+      <p id="move-count">Move Count: 0</p>
+      <button onclick="startNewGame()">New Game</button>
+      
+    </div>
+    <div id="game-board"></div>
+    <div id="leaderboard">
+      <h2>Leaderboard</h2>
+      <ol id="leaderboard-list"></ol>
+    </div>
+  </div>
+
+  <script>  
+     const puzzleSizes = [3, 4, 5];
+    const defaultPuzzleSize = 4;
+
+    
+    let puzzleSize = defaultPuzzleSize;
+    let puzzleState = [];
+    let emptyCell = {};
+    let timerInterval;
+    let timerSeconds = 0;
+    let moveCount = 0;
+    let isGameInProgress = false;
+
+    
+    window.onload = startNewGame;
+
+    function startNewGame() {
+      clearInterval(timerInterval);
+      timerSeconds = 0;
+      moveCount = 0;
+      isGameInProgress = true;
+
+      updateTimerDisplay();
+      updateMoveCountDisplay();
+
+      generatePuzzle();
+      renderPuzzle();
+      startTimer();
+    }
+
+    function generatePuzzle() {
+      puzzleState = [];
+      const numbers = Array.from({ length: puzzleSize * puzzleSize }, (_, index) => index + 1);
+      numbers.sort(() => Math.random() - 0.5);
+
+      for (let i = 0; i < puzzleSize; i++) {
+        puzzleState.push([]);
+        for (let j = 0; j < puzzleSize; j++) {
+          const number = numbers[i * puzzleSize + j];
+          puzzleState[i][j] = number;
+
+          if (number === puzzleSize * puzzleSize) {
+            emptyCell = { row: i, col: j };
+          }
+        }
+      }
+    }
+
+    function renderPuzzle() {
+      const gameBoard = document.getElementById('game-board');
+      gameBoard.innerHTML = '';
+
+      for (let i = 0; i < puzzleSize; i++) {
+        for (let j = 0; j < puzzleSize; j++) {
+          const puzzlePiece = document.createElement('div');
+          const number = puzzleState[i][j];
+
+          puzzlePiece.innerText = number;
+          puzzlePiece.classList.add('puzzle-piece');
+
+          if (number === puzzleSize * puzzleSize) {
+            puzzlePiece.classList.add('empty');
+          } else {
+            puzzlePiece.addEventListener('click', () => handlePieceClick(i, j));
+          }
+
+          gameBoard.appendChild(puzzlePiece);
+        }
+      }
+    }
+
+    function handlePieceClick(row, col) {
+      if (isGameInProgress && isAdjacentToEmpty(row, col)) {
+        [puzzleState[row][col], puzzleState[emptyCell.row][emptyCell.col]] = [puzzleState[emptyCell.row][emptyCell.col], puzzleState[row][col]];
+
+        emptyCell = { row, col };
+        moveCount++;
+
+        if (isPuzzleSolved()) {
+          endGame();
+        }
+
+        updateMoveCountDisplay();
+        renderPuzzle();
+      }
+    }
+
+    function isAdjacentToEmpty(row, col) {
+      return (
+        (Math.abs(row - emptyCell.row) === 1 && col === emptyCell.col) ||
+        (row === emptyCell.row && Math.abs(col - emptyCell.col) === 1)
+      );
+    }
+
+    function isPuzzleSolved() {
+      for (let i = 0; i < puzzleSize; i++) {
+        for (let j = 0; j < puzzleSize; j++) {
+          const number = i * puzzleSize + j + 1;
+          if (puzzleState[i][j] !== number % (puzzleSize * puzzleSize)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const timerDisplay = document.getElementById('timer');
+      const minutes = Math.floor(timerSeconds / 60);
+      const seconds = timerSeconds % 60;
+      timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    function updateMoveCountDisplay() {
+      const moveCountDisplay = document.getElementById('move-count');
+      moveCountDisplay.textContent = moveCount;
+    }
+
+    function endGame() {
+      isGameInProgress = false;
+      clearInterval(timerInterval);
+
+      const completionTime = timerSeconds;
+      const previousBestTime = localStorage.getItem(`bestTime_${puzzleSize}`) || Infinity;
+
+      if (completionTime < previousBestTime) {
+        localStorage.setItem(`bestTime_${puzzleSize}`, completionTime);
+        alert(`Congratulations! New best time: ${formatTime(completionTime)}`);
+      } else {
+        alert(`Congratulations! Puzzle solved in ${formatTime(completionTime)}`);
+      }
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    }
+
+ </script>
+</body>
+
+</html>
